@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jethrovo/wallbox-mqtt-bridge/app/ratelimit"
-	"github.com/jethro/wallbox-mqtt-bridge/app/wallbox"
+	"github.com/jethrovo/wallbox-mqtt-bridge/app/wallbox"
 )
 
 type Entity struct {
