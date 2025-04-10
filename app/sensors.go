@@ -402,21 +402,29 @@ func getDebugEntities(w *wallbox.Wallbox) map[string]Entity {
 }
 
 type Bridge struct {
-	// ...existing code...
+	eventRateLimits map[string]*ratelimit.DeltaRateLimit
 }
 
 func (b *Bridge) handleRedisEvent(channel string, message string) {
-	// Convert Redis channel to MQTT topic by replacing /wbx/ with wallbox/events/
-	topic := "wallbox/events/" + strings.TrimPrefix(channel, "/wbx/")
+	// Get or create rate limiter for this channel
+	if _, exists := b.eventRateLimits[channel]; !exists {
+		b.eventRateLimits[channel] = ratelimit.NewDeltaRateLimit(10, 0)
+	}
 
-	// Publish to MQTT
+	// Apply rate limiting using message length as dummy value
+	if !b.eventRateLimits[channel].Allow(0) {
+		return
+	}
+
+	topic := "wallbox/events/" + strings.TrimPrefix(channel, "/wbx/")
 	if token := b.mqttClient.Publish(topic, 0, false, message); token.Wait() && token.Error() != nil {
 		log.Printf("Failed to publish message to MQTT: %v", token.Error())
 	}
 }
 
 func (b *Bridge) Start() {
-	// ...existing code...
+	// Initialize rate limit map
+	b.eventRateLimits = make(map[string]*ratelimit.DeltaRateLimit)
 
 	// Set up Redis event handler
 	b.wallbox.SetEventHandler(b.handleRedisEvent)
@@ -424,6 +432,5 @@ func (b *Bridge) Start() {
 }
 
 func (b *Bridge) Stop() {
-	// ...existing code...
 	b.wallbox.StopRedisSubscriptions()
 }
