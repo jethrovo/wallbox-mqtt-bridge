@@ -10,7 +10,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jagheterfredrik/wallbox-mqtt-bridge/app/wallbox"
+	"github.com/jethrovo/wallbox-mqtt-bridge/app/wallbox"
 )
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
@@ -26,6 +26,9 @@ func RunBridge(configPath string) {
 	entityConfig := getEntities(w)
 	if c.Settings.DebugSensors {
 		for k, v := range getDebugEntities(w) {
+			entityConfig[k] = v
+		}
+		for k, v := range getTelemetryEventEntities(w) {
 			entityConfig[k] = v
 		}
 	}
@@ -96,6 +99,9 @@ func RunBridge(configPath string) {
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	// for debugging purposes, only run for the first 2 minutes
+	w.StartTimeConstrainedRedisSubscriptions(2 * time.Minute)
 
 	for {
 		select {

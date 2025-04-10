@@ -3,8 +3,11 @@ package wallbox
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -46,6 +49,38 @@ type DataCache struct {
 		TempL1                     float64 `redis:"tms.line1.temp_deg.value"`
 		TempL2                     float64 `redis:"tms.line2.temp_deg.value"`
 		TempL3                     float64 `redis:"tms.line3.temp_deg.value"`
+	}
+
+	RedisTelemetry struct {
+		ICPMaxCurrent                    float64 `redis:"telemetry.SENSOR_ICP_MAX_CURRENT"`
+		InternalMeterCurrentL1           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_CURRENT_L1"`
+		InternalMeterCurrentL2           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_CURRENT_L2"`
+		InternalMeterCurrentL3           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_CURRENT_L3"`
+		MaxAvailableCurrent              float64 `redis:"telemetry.SENSOR_MAX_AVAILABLE_CURRENT"`
+		UserCurrentProposal              float64 `redis:"telemetry.SENSOR_USER_CURRENT_PROPOSAL"`
+		DynamicPowerSharingMaxCurrent    float64 `redis:"telemetry.SENSOR_DYNAMIC_POWER_SHARING_MAX_CURRENT"`
+
+		InternalMeterVoltageL1           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_VOLTAGE_L1"`
+		InternalMeterVoltageL2           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_VOLTAGE_L2"`
+		InternalMeterVoltageL3           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_VOLTAGE_L3"`
+		InternalMeterVoltageFilterStatus float64 `redis:"telemetry.SENSOR_INTERNAL_METER_VOLTAGE_FILTER_STATUS"`
+		ControlPilotHighVolts            float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_HIGH_TENTHS_OF_VOLTS"`
+		ControlPilotLowVolts             float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_LOW_TENTHS_OF_VOLTS"`
+
+		InternalMeterEnergy              float64 `redis:"telemetry.SENSOR_INTERNAL_METER_ENERGY"`
+		EcosmartGreenEnergy              float64 `redis:"telemetry.SENSOR_ECOSMART_GREEN_ENERGY"`
+		EcosmartEnergyTotal              float64 `redis:"telemetry.SENSOR_ECOSMART_ENERGY_TOTAL"`
+
+		EcosmartMode                     float64 `redis:"telemetry.SENSOR_ECOSMART_MODE"`
+		EcosmartStatus                   float64 `redis:"telemetry.SENSOR_ECOSMART_STATUS"`
+		EcosmartCurrentProposal          float64 `redis:"telemetry.SENSOR_ECOSMART_CURRENT_PROPOSAL"`
+
+		InternalMeterFrequency           float64 `redis:"telemetry.SENSOR_INTERNAL_METER_FREQUENCY"`
+
+		ScheduleStatus                   float64 `redis:"telemetry.SENSOR_SCHEDULE_STATUS"`
+		ScheduleCurrentProposal          float64 `redis:"telemetry.SENSOR_SCHEDULE_CURRENT_PROPOSAL"`
+		PowerboostStatus                 float64 `redis:"telemetry.SENSOR_DCA_POWERBOOST_STATUS"`
+		PowerboostProposalCurrent        float64 `redis:"telemetry.SENSOR_POWERBOOST_PROPOSAL_CURRENT"`
 	}
 }
 
@@ -113,6 +148,9 @@ func (w *Wallbox) RefreshData() {
 		panic(err)
 	}
 
+	// Also refresh telemetry data
+	w.refreshTelemetryData(ctx)
+
 	query := "SELECT " +
 		"  `wallbox_config`.`charging_enable`," +
 		"  `wallbox_config`.`lock`," +
@@ -127,6 +165,18 @@ func (w *Wallbox) RefreshData() {
 		"    `power_outage_values`," +
 		"    (SELECT * FROM `session` ORDER BY `id` DESC LIMIT 1) AS latest_session"
 	w.sqlClient.Get(&w.Data.SQL, query)
+}
+
+func (w *Wallbox) refreshTelemetryData(ctx context.Context) {
+	telemetryRes := w.redisClient.HMGet(ctx, "telemetry", getRedisFields(w.Data.RedisTelemetry)...)
+	if telemetryRes.Err() != nil {
+		log.Printf("Error fetching telemetry data: %v", telemetryRes.Err())
+		return
+	}
+
+	if err := telemetryRes.Scan(&w.Data.RedisTelemetry); err != nil {
+		log.Printf("Error scanning telemetry data: %v", err)
+	}
 }
 
 func (w *Wallbox) SerialNumber() string {
@@ -225,31 +275,7 @@ func (w *Wallbox) SetEventHandler(handler func(channel string, message string)) 
 
 func (w *Wallbox) StartRedisSubscriptions() {
 	channels := []string{
-		"/wbx/cloud_pub_sub_command/events",
-		"/wbx/charger_state_machine/events",
-		"/wbx/sunspec_manager/events",
-		"/wbx/wallbox_login/events",
-		"/wbx/ble/events",
-		"/wbx/software_update/events",
-		"/wbx/rt_over_wallco/events_from_cloud",
-		"/wbx/wallbox_firewall/events",
-		"/wbx/wallbox_network/events",
-		"/wbx/charger_status/events",
-		"/wbx/bluetooth_gateway/events",
-		"/wbx/error_codes/events",
-		"/wbx/system_control/events",
-		"/wbx/hmi_manager/events",
-		"/wbx/charger_info/events",
 		"/wbx/telemetry/events",
-		"/wbx/charging_regulation/events",
-		"/wbx/evse_manager/events",
-		"/wbx/charge_session/events",
-		"/wbx/credentials_generator/events",
-		"/wbx/cloud_pub_sub_telemetry/events",
-		"/wbx/schedule_manager/events",
-		"/wbx/rt_over_wallco/events_to_cloud",
-		"/wbx/power_manager/events",
-		"/wbx/micro2wallbox/events",
 	}
 
 	w.pubsub = w.redisClient.Subscribe(context.Background(), channels...)
@@ -258,6 +284,10 @@ func (w *Wallbox) StartRedisSubscriptions() {
 	go func() {
 		ch := w.pubsub.Channel()
 		for msg := range ch {
+			if msg.Channel == "/wbx/telemetry/events" {
+				w.ProcessTelemetryEvent(msg.Payload)
+			}
+
 			if w.eventHandler != nil {
 				w.eventHandler(msg.Channel, msg.Payload)
 			}
@@ -269,4 +299,62 @@ func (w *Wallbox) StopRedisSubscriptions() {
 	if w.pubsub != nil {
 		w.pubsub.Close()
 	}
+}
+
+// StartTimeConstrRedisSubscriptions starts Redis subscriptions and automatically stops them after the specified duration
+func (w *Wallbox) StartTimeConstrainedRedisSubscriptions(duration time.Duration) {
+	w.StartRedisSubscriptions()
+	
+	// Set up a timer to stop the subscription after the specified duration
+	time.AfterFunc(duration, func() {
+		log.Printf("Subscription time limit of %v reached. Stopping subscriptions...", duration)
+		w.StopRedisSubscriptions()
+	})
+}
+
+// TelemetryEvent represents the structure of telemetry events
+type TelemetryEvent struct {
+	Body struct {
+		Sensors []struct {
+			ID        string    `json:"id"`
+			Metadata  []string  `json:"metadata"`
+			Timestamp string    `json:"timestamp"`
+			Value     float64   `json:"value"`
+		} `json:"sensors"`
+	} `json:"body"`
+	Header struct {
+		MessageID string `json:"message_id"`
+		Source    string `json:"source"`
+		Timestamp string `json:"timestamp"`
+	} `json:"header"`
+}
+
+// ProcessTelemetryEvent processes telemetry events and updates the RedisTelemetry struct
+func (w *Wallbox) ProcessTelemetryEvent(payload string) {
+	var event TelemetryEvent
+	err := json.Unmarshal([]byte(payload), &event)
+	if err != nil {
+		log.Printf("Error unmarshalling telemetry event: %v", err)
+		return
+	}
+
+	ctx := context.Background()
+	pipe := w.redisClient.Pipeline()
+
+	// Process each sensor in the event
+	for _, sensor := range event.Body.Sensors {
+		redisKey := "telemetry." + sensor.ID
+
+		// Store the value in Redis
+		pipe.HSet(ctx, "telemetry", redisKey, sensor.Value)
+	}
+
+	// Execute the pipeline
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		log.Printf("Error updating Redis with telemetry data: %v", err)
+	}
+
+	// Update the local cache
+	w.refreshTelemetryData(ctx)
 }

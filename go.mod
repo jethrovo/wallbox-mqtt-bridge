@@ -1,4 +1,4 @@
-module github.com/jagheterfredrik/wallbox-mqtt-bridge
+module github.com/jethrovo/wallbox-mqtt-bridge
 
 go 1.19
 
