@@ -2,7 +2,9 @@ package bridge
 
 import (
 	"fmt"
+	"log"
 	"strconv"
+	"strings"
 
 	"github.com/jagheterfredrik/wallbox-mqtt-bridge/app/ratelimit"
 	"github.com/jagheterfredrik/wallbox-mqtt-bridge/app/wallbox"
@@ -397,4 +399,31 @@ func getDebugEntities(w *wallbox.Wallbox) map[string]Entity {
 			},
 		},
 	}
+}
+
+type Bridge struct {
+	// ...existing code...
+}
+
+func (b *Bridge) handleRedisEvent(channel string, message string) {
+	// Convert Redis channel to MQTT topic by replacing /wbx/ with wallbox/events/
+	topic := "wallbox/events/" + strings.TrimPrefix(channel, "/wbx/")
+
+	// Publish to MQTT
+	if token := b.mqttClient.Publish(topic, 0, false, message); token.Wait() && token.Error() != nil {
+		log.Printf("Failed to publish message to MQTT: %v", token.Error())
+	}
+}
+
+func (b *Bridge) Start() {
+	// ...existing code...
+
+	// Set up Redis event handler
+	b.wallbox.SetEventHandler(b.handleRedisEvent)
+	b.wallbox.StartRedisSubscriptions()
+}
+
+func (b *Bridge) Stop() {
+	// ...existing code...
+	b.wallbox.StopRedisSubscriptions()
 }
