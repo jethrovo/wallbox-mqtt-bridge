@@ -43,17 +43,19 @@ type DataCache struct {
 		PowerBoostLine2Current     float64 `redis:"PBO.line2.current.value"`
 		PowerBoostLine3Current     float64 `redis:"PBO.line3.current.value"`
 		PowerBoostCumulativeEnergy float64 `redis:"PBO.energy_wh.value"`
-        	TempL1                     float64 `redis:"tms.line1.temp_deg.value"`
-        	TempL2                     float64 `redis:"tms.line2.temp_deg.value"`
-        	TempL3                     float64 `redis:"tms.line3.temp_deg.value"`
+		TempL1                     float64 `redis:"tms.line1.temp_deg.value"`
+		TempL2                     float64 `redis:"tms.line2.temp_deg.value"`
+		TempL3                     float64 `redis:"tms.line3.temp_deg.value"`
 	}
 }
 
 type Wallbox struct {
-	redisClient *redis.Client
-	sqlClient   *sqlx.DB
-	Data        DataCache
-	ChargerType string `db:"charger_type"`
+	redisClient  *redis.Client
+	sqlClient    *sqlx.DB
+	Data         DataCache
+	ChargerType  string `db:"charger_type"`
+	pubsub       *redis.PubSub
+	eventHandler func(channel string, message string)
 }
 
 func New() *Wallbox {
@@ -215,4 +217,56 @@ func (w *Wallbox) ControlPilotStatus() string {
 
 func (w *Wallbox) StateMachineState() string {
 	return fmt.Sprintf("%d: %s", w.Data.RedisState.SessionState, stateMachineStates[w.Data.RedisState.SessionState])
+}
+
+func (w *Wallbox) SetEventHandler(handler func(channel string, message string)) {
+	w.eventHandler = handler
+}
+
+func (w *Wallbox) StartRedisSubscriptions() {
+	channels := []string{
+		"/wbx/cloud_pub_sub_command/events",
+		"/wbx/charger_state_machine/events",
+		"/wbx/sunspec_manager/events",
+		"/wbx/wallbox_login/events",
+		"/wbx/ble/events",
+		"/wbx/software_update/events",
+		"/wbx/rt_over_wallco/events_from_cloud",
+		"/wbx/wallbox_firewall/events",
+		"/wbx/wallbox_network/events",
+		"/wbx/charger_status/events",
+		"/wbx/bluetooth_gateway/events",
+		"/wbx/error_codes/events",
+		"/wbx/system_control/events",
+		"/wbx/hmi_manager/events",
+		"/wbx/charger_info/events",
+		"/wbx/telemetry/events",
+		"/wbx/charging_regulation/events",
+		"/wbx/evse_manager/events",
+		"/wbx/charge_session/events",
+		"/wbx/credentials_generator/events",
+		"/wbx/cloud_pub_sub_telemetry/events",
+		"/wbx/schedule_manager/events",
+		"/wbx/rt_over_wallco/events_to_cloud",
+		"/wbx/power_manager/events",
+		"/wbx/micro2wallbox/events",
+	}
+
+	w.pubsub = w.redisClient.Subscribe(context.Background(), channels...)
+
+	// Start goroutine to handle messages
+	go func() {
+		ch := w.pubsub.Channel()
+		for msg := range ch {
+			if w.eventHandler != nil {
+				w.eventHandler(msg.Channel, msg.Payload)
+			}
+		}
+	}()
+}
+
+func (w *Wallbox) StopRedisSubscriptions() {
+	if w.pubsub != nil {
+		w.pubsub.Close()
+	}
 }
