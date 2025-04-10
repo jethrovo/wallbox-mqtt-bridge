@@ -2,9 +2,7 @@ package bridge
 
 import (
 	"fmt"
-	"log"
 	"strconv"
-	"strings"
 
 	"github.com/jethrovo/wallbox-mqtt-bridge/app/ratelimit"
 	"github.com/jethrovo/wallbox-mqtt-bridge/app/wallbox"
