@@ -28,6 +28,9 @@ func RunBridge(configPath string) {
 		for k, v := range getDebugEntities(w) {
 			entityConfig[k] = v
 		}
+		for k, v := range getTelemetryEventEntities(w) {
+			entityConfig[k] = v
+		}
 	}
 
 	if c.Settings.PowerBoostEnabled {
@@ -96,6 +99,9 @@ func RunBridge(configPath string) {
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	// for debugging purposes, only run for the first 2 minutes
+	wb.StartTimeConstrainedRedisSubscriptions(2 * time.Minute)
 
 	for {
 		select {

@@ -401,29 +401,247 @@ func getDebugEntities(w *wallbox.Wallbox) map[string]Entity {
 	}
 }
 
-type Bridge struct {
-	// ...existing code...
-}
-
-func (b *Bridge) handleRedisEvent(channel string, message string) {
-	// Convert Redis channel to MQTT topic by replacing /wbx/ with wallbox/events/
-	topic := "wallbox/events/" + strings.TrimPrefix(channel, "/wbx/")
-
-	// Publish to MQTT
-	if token := b.mqttClient.Publish(topic, 0, false, message); token.Wait() && token.Error() != nil {
-		log.Printf("Failed to publish message to MQTT: %v", token.Error())
+// getTelemetryEventEntities creates entities for sensor data from the telemetry events
+func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
+	return map[string]Entity{
+		// Power and Current Related
+		"icp_max_current": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ICPMaxCurrent) },
+			Config: map[string]string{
+				"name":                        "ICP Max Current",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"internal_meter_current_l1": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterCurrentL1) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 0.2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Current L1",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"internal_meter_current_l2": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterCurrentL2) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 0.2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Current L2",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"internal_meter_current_l3": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterCurrentL3) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 0.2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Current L3",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"icon":                        "mdi:leaf",
+			},
+		},
+		"user_current_proposal": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.UserCurrentProposal) },
+			Config: map[string]string{
+				"name":                        "User Current Proposal",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		
+		// Voltage Related
+		"internal_meter_voltage_l1": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterVoltageL1) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Voltage L1",
+				"device_class":                "voltage",
+				"unit_of_measurement":         "V",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"internal_meter_voltage_l2": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterVoltageL2) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Voltage L2",
+				"device_class":                "voltage",
+				"unit_of_measurement":         "V",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"internal_meter_voltage_l3": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterVoltageL3) },
+			RateLimit: ratelimit.NewDeltaRateLimit(10, 2),
+			Config: map[string]string{
+				"name":                        "Internal Meter Voltage L3",
+				"device_class":                "voltage",
+				"unit_of_measurement":         "V",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"control_pilot_high_voltage": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotHighVolts / 10.0) }, // Convert tenths to volts
+			Config: map[string]string{
+				"name":                        "Control Pilot High Voltage",
+				"device_class":                "voltage",
+				"unit_of_measurement":         "V",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"control_pilot_low_voltage": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotLowVolts / 10.0) }, // Convert tenths to volts
+			Config: map[string]string{
+				"name":                        "Control Pilot Low Voltage",
+				"device_class":                "voltage",
+				"unit_of_measurement":         "V",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		
+		// Energy Related
+		"internal_meter_energy": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterEnergy) },
+			Config: map[string]string{
+				"name":                        "Internal Meter Energy",
+				"device_class":                "energy",
+				"unit_of_measurement":         "Wh",
+				"state_class":                 "total_increasing",
+				"suggested_display_precision": "1",
+			},
+		},
+		"ecosmart_green_energy": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartGreenEnergy) },
+			Config: map[string]string{
+				"name":                        "EcoSmart Green Energy",
+				"device_class":                "energy",
+				"unit_of_measurement":         "Wh",
+				"state_class":                 "total_increasing",
+				"suggested_display_precision": "1",
+				"icon":                        "mdi:leaf",
+			},
+		},
+		"ecosmart_energy_total": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartEnergyTotal) },
+			Config: map[string]string{
+				"name":                        "EcoSmart Total Energy",
+				"device_class":                "energy",
+				"unit_of_measurement":         "Wh",
+				"state_class":                 "total_increasing",
+				"suggested_display_precision": "1",
+			},
+		},
+		
+		// System Status
+		"ecosmart_mode": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartMode) },
+			Config: map[string]string{
+				"name": "EcoSmart Mode",
+				"icon": "mdi:leaf",
+			},
+		},
+		"ecosmart_status": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartStatus) },
+			Config: map[string]string{
+				"name": "EcoSmart Status",
+				"icon": "mdi:leaf",
+			},
+		},
+		"ecosmart_current_proposal": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartCurrentProposal) },
+			Config: map[string]string{
+				"name":                        "EcoSmart Current Proposal",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"icon":                        "mdi:leaf",
+			},
+		},
+		
+		// Frequency
+		"internal_meter_frequency": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.InternalMeterFrequency) },
+			Config: map[string]string{
+				"name":                        "Internal Meter Frequency",
+				"device_class":                "frequency",
+				"unit_of_measurement":         "Hz",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		
+		// Schedule and PowerBoost
+		"schedule_status": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ScheduleStatus) },
+			Config: map[string]string{
+				"name": "Schedule Status",
+				"icon": "mdi:calendar-clock",
+			},
+		},
+		"schedule_current_proposal": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ScheduleCurrentProposal) },
+			Config: map[string]string{
+				"name":                        "Schedule Current Proposal",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"icon":                        "mdi:calendar-clock",
+			},
+		},
+		"powerboost_status": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.PowerboostStatus) },
+			Config: map[string]string{
+				"name": "PowerBoost Status",
+			},
+		},
+		"powerboost_proposal_current": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.PowerboostProposalCurrent) },
+			Config: map[string]string{
+				"name":                        "PowerBoost Current Proposal",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
 	}
-}
-
-func (b *Bridge) Start() {
-	// ...existing code...
-
-	// Set up Redis event handler
-	b.wallbox.SetEventHandler(b.handleRedisEvent)
-	b.wallbox.StartRedisSubscriptions()
-}
-
-func (b *Bridge) Stop() {
-	// ...existing code...
-	b.wallbox.StopRedisSubscriptions()
 }
