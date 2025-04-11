@@ -10,7 +10,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jethrovo/wallbox-mqtt-bridge/app/wallbox"
+	"wallbox-mqtt-bridge/app/wallbox"
 )
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {

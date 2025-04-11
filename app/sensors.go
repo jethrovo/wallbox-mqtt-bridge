@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jethrovo/wallbox-mqtt-bridge/app/ratelimit"
-	"github.com/jethrovo/wallbox-mqtt-bridge/app/wallbox"
+	"wallbox-mqtt-bridge/app/ratelimit"
+	"wallbox-mqtt-bridge/app/wallbox"
 )
 
 type Entity struct {
