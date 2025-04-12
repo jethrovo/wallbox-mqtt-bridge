@@ -81,6 +81,20 @@ type DataCache struct {
 		ScheduleCurrentProposal          float64 `redis:"telemetry.SENSOR_SCHEDULE_CURRENT_PROPOSAL"`
 		PowerboostStatus                 float64 `redis:"telemetry.SENSOR_DCA_POWERBOOST_STATUS"`
 		PowerboostProposalCurrent        float64 `redis:"telemetry.SENSOR_POWERBOOST_PROPOSAL_CURRENT"`
+		
+		// Additional fields referenced in getTelemetryEventEntities
+		ChargingEnable                   float64 `redis:"telemetry.SENSOR_CHARGING_ENABLE"`
+		ControlPilotDuty                 float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_DUTY"`
+		ControlPilotStatus               float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_STATUS"`
+		MaxChargingCurrent               float64 `redis:"telemetry.SENSOR_MAX_CHARGING_CURRENT"`
+		MidStatus                        float64 `redis:"telemetry.SENSOR_MID_STATUS"`
+		PowerSharingStatus               float64 `redis:"telemetry.SENSOR_POWER_SHARING_STATUS"`
+		TempL1                           float64 `redis:"telemetry.SENSOR_TEMP_L1"`
+		TempL2                           float64 `redis:"telemetry.SENSOR_TEMP_L2"`
+		TempL3                           float64 `redis:"telemetry.SENSOR_TEMP_L3"`
+		Welding                          float64 `redis:"telemetry.SENSOR_WELDING"`
+		FirmwareError                    float64 `redis:"telemetry.SENSOR_FIRMWARE_ERROR"`
+		PowerRelayManagementCommand      float64 `redis:"telemetry.SENSOR_POWER_RELAY_MANAGEMENT_COMMAND"`
 	}
 }
 
@@ -148,9 +162,6 @@ func (w *Wallbox) RefreshData() {
 		panic(err)
 	}
 
-	// Also refresh telemetry data
-	w.refreshTelemetryData(ctx)
-
 	query := "SELECT " +
 		"  `wallbox_config`.`charging_enable`," +
 		"  `wallbox_config`.`lock`," +
@@ -165,18 +176,9 @@ func (w *Wallbox) RefreshData() {
 		"    `power_outage_values`," +
 		"    (SELECT * FROM `session` ORDER BY `id` DESC LIMIT 1) AS latest_session"
 	w.sqlClient.Get(&w.Data.SQL, query)
-}
-
-func (w *Wallbox) refreshTelemetryData(ctx context.Context) {
-	telemetryRes := w.redisClient.HMGet(ctx, "telemetry", getRedisFields(w.Data.RedisTelemetry)...)
-	if telemetryRes.Err() != nil {
-		log.Printf("Error fetching telemetry data: %v", telemetryRes.Err())
-		return
-	}
-
-	if err := telemetryRes.Scan(&w.Data.RedisTelemetry); err != nil {
-		log.Printf("Error scanning telemetry data: %v", err)
-	}
+	
+	// We no longer need to refresh telemetry data from Redis
+	// The telemetry data comes directly from Redis subscriptions and is stored only in memory
 }
 
 func (w *Wallbox) SerialNumber() string {
@@ -338,23 +340,35 @@ func (w *Wallbox) ProcessTelemetryEvent(payload string) {
 		return
 	}
 
-	ctx := context.Background()
-	pipe := w.redisClient.Pipeline()
-
 	// Process each sensor in the event
 	for _, sensor := range event.Body.Sensors {
-		redisKey := "telemetry." + sensor.ID
+		// Directly update the RedisTelemetry struct based on the sensor ID
+		w.updateTelemetryField(sensor.ID, sensor.Value)
+	}
+}
 
-		// Store the value in Redis
-		pipe.HSet(ctx, "telemetry", redisKey, sensor.Value)
+// updateTelemetryField updates a specific field in the RedisTelemetry struct by sensor ID
+func (w *Wallbox) updateTelemetryField(sensorID string, value float64) {
+	// Use reflection to update the appropriate field in the RedisTelemetry struct
+	v := reflect.ValueOf(&w.Data.RedisTelemetry).Elem()
+	t := v.Type()
+	
+	// Iterate through struct fields to find the matching one
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		redisTag := field.Tag.Get("redis")
+		
+		// Check if this field's redis tag matches our telemetry key
+		if redisTag == "telemetry."+sensorID {
+			// Make sure the field is settable
+			if v.Field(i).CanSet() {
+				v.Field(i).SetFloat(value)
+			}
+			return
+		}
 	}
 
-	// Execute the pipeline
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		log.Printf("Error updating Redis with telemetry data: %v", err)
-	}
-
-	// Update the local cache
-	w.refreshTelemetryData(ctx)
+	// If we get here, we didn't find a matching field (might be a new sensor we're not tracking yet)
+	// We could log this for debugging purposes
+	log.Printf("No matching struct field found for sensor ID: %s", sensorID)
 }
