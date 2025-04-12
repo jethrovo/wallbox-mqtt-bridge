@@ -81,6 +81,20 @@ type DataCache struct {
 		ScheduleCurrentProposal          float64 `redis:"telemetry.SENSOR_SCHEDULE_CURRENT_PROPOSAL"`
 		PowerboostStatus                 float64 `redis:"telemetry.SENSOR_DCA_POWERBOOST_STATUS"`
 		PowerboostProposalCurrent        float64 `redis:"telemetry.SENSOR_POWERBOOST_PROPOSAL_CURRENT"`
+		
+		// Additional fields referenced in getTelemetryEventEntities
+		ChargingEnable                   float64 `redis:"telemetry.SENSOR_CHARGING_ENABLE"`
+		ControlPilotDuty                 float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_DUTY"`
+		ControlPilotStatus               float64 `redis:"telemetry.SENSOR_CONTROL_PILOT_STATUS"`
+		MaxChargingCurrent               float64 `redis:"telemetry.SENSOR_MAX_CHARGING_CURRENT"`
+		MidStatus                        float64 `redis:"telemetry.SENSOR_MID_STATUS"`
+		PowerSharingStatus               float64 `redis:"telemetry.SENSOR_POWER_SHARING_STATUS"`
+		TempL1                           float64 `redis:"telemetry.SENSOR_TEMP_L1"`
+		TempL2                           float64 `redis:"telemetry.SENSOR_TEMP_L2"`
+		TempL3                           float64 `redis:"telemetry.SENSOR_TEMP_L3"`
+		Welding                          float64 `redis:"telemetry.SENSOR_WELDING"`
+		FirmwareError                    float64 `redis:"telemetry.SENSOR_FIRMWARE_ERROR"`
+		PowerRelayManagementCommand      float64 `redis:"telemetry.SENSOR_POWER_RELAY_MANAGEMENT_COMMAND"`
 	}
 }
 
@@ -149,7 +163,7 @@ func (w *Wallbox) RefreshData() {
 	}
 
 	// Also refresh telemetry data
-	w.refreshTelemetryData(ctx)
+	// w.refreshTelemetryData(ctx)
 
 	query := "SELECT " +
 		"  `wallbox_config`.`charging_enable`," +
