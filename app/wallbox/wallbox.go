@@ -176,18 +176,9 @@ func (w *Wallbox) RefreshData() {
 		"    `power_outage_values`," +
 		"    (SELECT * FROM `session` ORDER BY `id` DESC LIMIT 1) AS latest_session"
 	w.sqlClient.Get(&w.Data.SQL, query)
-}
-
-func (w *Wallbox) refreshTelemetryData(ctx context.Context) {
-	telemetryRes := w.redisClient.HMGet(ctx, "telemetry", getRedisFields(w.Data.RedisTelemetry)...)
-	if telemetryRes.Err() != nil {
-		log.Printf("Error fetching telemetry data: %v", telemetryRes.Err())
-		return
-	}
-
-	if err := telemetryRes.Scan(&w.Data.RedisTelemetry); err != nil {
-		log.Printf("Error scanning telemetry data: %v", err)
-	}
+	
+	// We no longer need to refresh telemetry data from Redis
+	// The telemetry data comes directly from Redis subscriptions and is stored only in memory
 }
 
 func (w *Wallbox) SerialNumber() string {
