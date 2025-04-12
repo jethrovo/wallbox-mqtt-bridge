@@ -401,7 +401,7 @@ func getDebugEntities(w *wallbox.Wallbox) map[string]Entity {
 
 // getTelemetryEventEntities creates entities for sensor data from the telemetry events
 func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
-	return map[string]Entity{
+	entities := map[string]Entity{
 		// Power and Current Related
 		"icp_max_current": {
 			Component: "sensor",
@@ -412,6 +412,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "A",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"internal_meter_current_l1": {
@@ -424,6 +425,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "A",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"internal_meter_current_l2": {
@@ -436,6 +438,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "A",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"internal_meter_current_l3": {
@@ -449,6 +452,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
 				"icon":                        "mdi:leaf",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"user_current_proposal": {
@@ -460,6 +464,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "A",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		
@@ -474,6 +479,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "V",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"internal_meter_voltage_l2": {
@@ -486,6 +492,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "V",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"internal_meter_voltage_l3": {
@@ -498,6 +505,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "V",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"control_pilot_high_voltage": {
@@ -509,6 +517,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "V",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"control_pilot_low_voltage": {
@@ -520,6 +529,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "V",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		
@@ -533,6 +543,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "Wh",
 				"state_class":                 "total_increasing",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"ecosmart_green_energy": {
@@ -545,6 +556,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"state_class":                 "total_increasing",
 				"suggested_display_precision": "1",
 				"icon":                        "mdi:leaf",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"ecosmart_energy_total": {
@@ -556,6 +568,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "Wh",
 				"state_class":                 "total_increasing",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		
@@ -564,16 +577,18 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 			Component: "sensor",
 			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartMode) },
 			Config: map[string]string{
-				"name": "EcoSmart Mode",
-				"icon": "mdi:leaf",
+				"name":            "EcoSmart Mode",
+				"icon":            "mdi:leaf",
+				"entity_category": "diagnostic",
 			},
 		},
 		"ecosmart_status": {
 			Component: "sensor",
 			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.EcosmartStatus) },
 			Config: map[string]string{
-				"name": "EcoSmart Status",
-				"icon": "mdi:leaf",
+				"name":            "EcoSmart Status",
+				"icon":            "mdi:leaf",
+				"entity_category": "diagnostic",
 			},
 		},
 		"ecosmart_current_proposal": {
@@ -586,6 +601,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
 				"icon":                        "mdi:leaf",
+				"entity_category":             "diagnostic",
 			},
 		},
 		
@@ -599,6 +615,7 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "Hz",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
 			},
 		},
 		
@@ -607,8 +624,9 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 			Component: "sensor",
 			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ScheduleStatus) },
 			Config: map[string]string{
-				"name": "Schedule Status",
-				"icon": "mdi:calendar-clock",
+				"name":            "Schedule Status",
+				"icon":            "mdi:calendar-clock",
+				"entity_category": "diagnostic",
 			},
 		},
 		"schedule_current_proposal": {
@@ -621,13 +639,15 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
 				"icon":                        "mdi:calendar-clock",
+				"entity_category":             "diagnostic",
 			},
 		},
 		"powerboost_status": {
 			Component: "sensor",
 			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.PowerboostStatus) },
 			Config: map[string]string{
-				"name": "PowerBoost Status",
+				"name":            "PowerBoost Status",
+				"entity_category": "diagnostic",
 			},
 		},
 		"powerboost_proposal_current": {
@@ -639,7 +659,177 @@ func getTelemetryEventEntities(w *wallbox.Wallbox) map[string]Entity {
 				"unit_of_measurement":         "A",
 				"state_class":                 "measurement",
 				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		
+		// New sensors from JSON data
+		"charging_enable_sensor": {
+			Component: "binary_sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ChargingEnable) },
+			Config: map[string]string{
+				"name":            "Charging Enable Status",
+				"payload_on":      "1",
+				"payload_off":     "0",
+				"entity_category": "diagnostic",
+			},
+		},
+		"control_pilot_duty": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotDuty) },
+			Config: map[string]string{
+				"name":            "Control Pilot Duty",
+				"state_class":     "measurement",
+				"entity_category": "diagnostic",
+			},
+		},
+		"control_pilot_high_voltage_tenths": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotHighVolts) }, // Raw tenths of volts
+			Config: map[string]string{
+				"name":                        "Control Pilot High Voltage (tenths)",
+				"entity_category":             "diagnostic",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"control_pilot_low_voltage_tenths": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotLowVolts) }, // Raw tenths of volts
+			Config: map[string]string{
+				"name":                        "Control Pilot Low Voltage (tenths)",
+				"entity_category":             "diagnostic",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+			},
+		},
+		"control_pilot_status_raw": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.ControlPilotStatus) },
+			Config: map[string]string{
+				"name":            "Control Pilot Status Raw",
+				"entity_category": "diagnostic",
+			},
+		},
+		"max_available_current": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.MaxAvailableCurrent) },
+			Config: map[string]string{
+				"name":                        "Max Available Current",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"max_charging_current_sensor": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.MaxChargingCurrent) },
+			Config: map[string]string{
+				"name":                        "Max Charging Current (sensor)",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"mid_status": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.MidStatus) },
+			Config: map[string]string{
+				"name":            "MID Status",
+				"entity_category": "diagnostic",
+			},
+		},
+		"power_sharing_status": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.PowerSharingStatus) },
+			Config: map[string]string{
+				"name":            "Power Sharing Status",
+				"entity_category": "diagnostic",
+			},
+		},
+		"temperature_l1_sensor": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.TempL1) },
+			Config: map[string]string{
+				"name":                        "Temperature Line 1 (sensor)",
+				"device_class":                "temperature",
+				"unit_of_measurement":         "°C",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"temperature_l2_sensor": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.TempL2) },
+			Config: map[string]string{
+				"name":                        "Temperature Line 2 (sensor)",
+				"device_class":                "temperature",
+				"unit_of_measurement":         "°C",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"temperature_l3_sensor": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.TempL3) },
+			Config: map[string]string{
+				"name":                        "Temperature Line 3 (sensor)",
+				"device_class":                "temperature",
+				"unit_of_measurement":         "°C",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"welding": {
+			Component: "binary_sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.Welding) },
+			Config: map[string]string{
+				"name":            "Welding Detection",
+				"device_class":    "problem",
+				"payload_on":      "1",
+				"payload_off":     "0",
+				"entity_category": "diagnostic",
+			},
+		},
+		"firmware_error": {
+			Component: "binary_sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.FirmwareError) },
+			Config: map[string]string{
+				"name":            "Firmware Error",
+				"device_class":    "problem",
+				"payload_on":      "1",
+				"payload_off":     "0",
+				"entity_category": "diagnostic",
+			},
+		},
+		"dynamic_power_sharing_max_current": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.DynamicPowerSharingMaxCurrent) },
+			Config: map[string]string{
+				"name":                        "Dynamic Power Sharing Max Current",
+				"device_class":                "current",
+				"unit_of_measurement":         "A",
+				"state_class":                 "measurement",
+				"suggested_display_precision": "1",
+				"entity_category":             "diagnostic",
+			},
+		},
+		"power_relay_management_command": {
+			Component: "sensor",
+			Getter:    func() string { return fmt.Sprint(w.Data.RedisTelemetry.PowerRelayManagementCommand) },
+			Config: map[string]string{
+				"name":            "Power Relay Management Command",
+				"entity_category": "diagnostic",
 			},
 		},
 	}
+	
+	return entities
 }

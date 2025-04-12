@@ -101,7 +101,8 @@ func RunBridge(configPath string) {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	// for debugging purposes, only run for the first 2 minutes
-	w.StartTimeConstrainedRedisSubscriptions(2 * time.Minute)
+	// w.StartTimeConstrainedRedisSubscriptions(2 * time.Minute)
+	w.StartRedisSubscriptions()
 
 	for {
 		select {
@@ -128,4 +129,6 @@ func RunBridge(configPath string) {
 			return
 		}
 	}
+
+	w.StopRedisSubscriptions()
 }
