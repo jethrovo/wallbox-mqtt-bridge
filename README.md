@@ -26,11 +26,12 @@ Note: This Does work with firmware > v6.6.x but is still being tested
 3. `ssh` to your Wallbox and run
 
 ```sh
-curl -sSfL https://github.com/jagheterfredrik/wallbox-mqtt-bridge/releases/download/bridge/install.sh > install.sh && bash install.sh
+curl -sSfL https://github.com/jethrovo/wallbox-mqtt-bridge/releases/download/bridgechannels-2025.4.12/install.sh > install.sh && bash install.sh
 ```
 
 Note: To upgrade to new version, simply run the command from step 3 again.
 
 ## Acknowledgments
 
+The credits go out to jagheterfredrik (https://github.com/jagheterfredrik/wallbox-mqtt-bridge), who made the original MQTT Bridge for the Wallbox! I only added the newer firmware support.
 A big shoutout to [@tronikos](https://github.com/tronikos) for their valuable contributions. This project wouldn't be the same without the collaborative spirit of the open-source community.
