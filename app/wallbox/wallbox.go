@@ -105,6 +105,7 @@ type Wallbox struct {
 	ChargerType  string `db:"charger_type"`
 	pubsub       *redis.PubSub
 	eventHandler func(channel string, message string)
+	selectedUserId string
 }
 
 func New() *Wallbox {
@@ -193,6 +194,33 @@ func (w *Wallbox) UserId() string {
 	return userId
 }
 
+func (w *Wallbox) SelectedUserId() string {
+	if w.selectedUserId != "" {
+		return w.selectedUserId
+	}
+	return w.UserId()
+}
+
+func (w *Wallbox) SetSelectedUserId(userId string) {
+	if userId == "" {
+		w.selectedUserId = ""
+		return
+	}
+	if w.userIdExists(userId) {
+		w.selectedUserId = userId
+		return
+	}
+	w.selectedUserId = ""
+}
+
+func (w *Wallbox) userIdExists(userId string) bool {
+	var count int
+	if err := w.sqlClient.QueryRow("SELECT COUNT(*) FROM `users` WHERE `user_id` = ?", userId).Scan(&count); err != nil {
+		return false
+	}
+	return count > 0
+}
+
 func (w *Wallbox) AvailableCurrent() int {
 	var availableCurrent int
 	w.sqlClient.QueryRow("SELECT `max_avbl_current` FROM `state_values` ORDER BY `id` DESC LIMIT 1").Scan(&availableCurrent)
@@ -210,7 +238,7 @@ func sendToPosixQueue(path, data string) {
 	mqClose(mq)
 }
 
-func (w *Wallbox) SetLocked(lock int) {
+func (w *Wallbox) SetLocked(lock int, userIdOpt ...string) {
 	w.RefreshData()
 	if lock == w.Data.SQL.Lock {
 		return
@@ -220,7 +248,17 @@ func (w *Wallbox) SetLocked(lock int) {
 	} else if lock == 1 {
 		sendToPosixQueue("WALLBOX_MYWALLBOX_WALLBOX_LOGIN", "EVENT_REQUEST_LOCK")
 	} else {
-		userId := w.UserId()
+		var userId string
+		if len(userIdOpt) > 0 && userIdOpt[0] != "" {
+			if w.userIdExists(userIdOpt[0]) {
+				userId = userIdOpt[0]
+			} else {
+				// userId does not exist, use fallback
+				userId = w.UserId()
+			}
+		} else {
+			userId = w.UserId()
+		}
 		sendToPosixQueue("WALLBOX_MYWALLBOX_WALLBOX_LOGIN", "EVENT_REQUEST_LOGIN#"+userId+".000000")
 	}
 }
@@ -371,4 +409,21 @@ func (w *Wallbox) updateTelemetryField(sensorID string, value float64) {
 	// If we get here, we didn't find a matching field (might be a new sensor we're not tracking yet)
 	// We could log this for debugging purposes
 	log.Printf("No matching struct field found for sensor ID: %s", sensorID)
+}
+
+// GetAllUserIds returns all userIds except 1, ordered descending
+func (w *Wallbox) GetAllUserIds() []string {
+	rows, err := w.sqlClient.Query("SELECT user_id FROM users WHERE user_id != 1 ORDER BY user_id DESC")
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

@@ -14,6 +14,7 @@ type Entity struct {
 	Setter    func(string)
 	RateLimit *ratelimit.DeltaRateLimit
 	Config    map[string]string
+	Options   []string
 }
 
 func strToInt(val string) int {
@@ -28,6 +29,32 @@ func strToFloat(val string) float64 {
 
 func getEntities(w *wallbox.Wallbox) map[string]Entity {
 	return map[string]Entity{
+		"user_id_select": {
+			Component: "select",
+			Getter:    func() string { return w.SelectedUserId() },
+			Setter:    func(val string) { w.SetSelectedUserId(val) },
+			Options:   w.GetAllUserIds(),
+			Config: map[string]string{
+				"name": "User ID Select",
+			},
+		},
+		"user_id_list": {
+			Component: "sensor",
+			Getter: func() string {
+				ids := w.GetAllUserIds()
+				return fmt.Sprintf("%s", ids)
+			},
+			Config: map[string]string{
+				"name": "User ID List",
+			},
+		},
+		"default_user_id": {
+			Component: "sensor",
+			Getter:    func() string { return w.UserId() },
+			Config: map[string]string{
+				"name": "Default User ID",
+			},
+		},
 		"added_energy": {
 			Component: "sensor",
 			Getter:    func() string { return fmt.Sprint(w.Data.RedisState.ScheduleEnergy) },
@@ -199,7 +226,7 @@ func getEntities(w *wallbox.Wallbox) map[string]Entity {
 		},
 		"lock": {
 			Component: "lock",
-			Setter:    func(val string) { w.SetLocked(strToInt(val)) },
+			Setter:    func(val string) { w.SetLocked(strToInt(val), w.SelectedUserId()) },
 			Getter:    func() string { return fmt.Sprint(w.Data.SQL.Lock) },
 			Config: map[string]string{
 				"name":           "Lock",
