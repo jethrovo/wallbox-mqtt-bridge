@@ -28,7 +28,7 @@ This open-source project connects your Wallbox fully locally to Home Assistant, 
 3. `ssh` to your Wallbox and run
 
 ```sh
-curl -sSfL https://github.com/Leventionz/wallbox-mqtt-bridge/releases/download/bridgechannels-2025.12.06/install.sh > install.sh && bash install.sh
+curl -sSfL https://github.com/jethrovo/wallbox-mqtt-bridge/releases/download/bridgechannels-2026.3.13/install.sh > install.sh && bash install.sh
 ```
 
 **If you intend to update on your charger, make sure no vehicle is connected to avoid any chance of this application being the cause of your charger rebooting mid-update.**
@@ -88,5 +88,5 @@ ocpp_full_reboot = false              # set to true to allow a full Wallbox rebo
 
 ## Acknowledgments
 
-The credits go out to jagheterfredrik (https://github.com/jagheterfredrik/wallbox-mqtt-bridge), who made the original MQTT Bridge for the Wallbox and jethrovo for his updated version supporting version v6.6.x.
+The credits go out to jagheterfredrik (https://github.com/jagheterfredrik/wallbox-mqtt-bridge), who made the original MQTT Bridge for the Wallbox and Leventionz for polishing my raw concept for supporting version v6.6.x.
 A big shoutout to [@tronikos](https://github.com/tronikos) for their valuable contributions. This project wouldn't be the same without the collaborative spirit of the open-source community.
