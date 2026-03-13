@@ -48,6 +48,9 @@ func RunTuiSetup() {
 	config.Settings.DeviceName = "Wallbox"
 	config.Settings.DebugSensors = false
 	config.Settings.PowerBoostEnabled = false
+	config.Settings.AutoRestartOCPP = false
+	config.Settings.OCPPMismatchSeconds = 60
+	config.Settings.OCPPRestartCooldown = 600
 
 	askConfirmOrNew(&config.MQTT.Host, "MQTT Host")
 	askConfirmOrNewInt(&config.MQTT.Port, "MQTT Port")
@@ -57,6 +60,9 @@ func RunTuiSetup() {
 	askConfirmOrNew(&config.Settings.DeviceName, "Device name")
 	askConfirmOrNewBool(&config.Settings.DebugSensors, "Debug sensors")
 	askConfirmOrNewBool(&config.Settings.PowerBoostEnabled, "Enable Power Boost sensors")
+	askConfirmOrNewBool(&config.Settings.AutoRestartOCPP, "Auto-restart OCPP service on disconnect mismatch")
+	askConfirmOrNewInt(&config.Settings.OCPPMismatchSeconds, "Seconds before restarting OCPP (0=30)")
+	askConfirmOrNewInt(&config.Settings.OCPPRestartCooldown, "Cooldown between OCPP restarts (seconds, 0=600)")
 
 	config.SaveTo("bridge.ini")
 }
