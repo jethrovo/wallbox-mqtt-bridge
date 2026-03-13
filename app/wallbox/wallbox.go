@@ -1212,15 +1212,25 @@ func normalizeSessionState(state string) string {
 func (w *Wallbox) GetAllUserIds() []string {
 	rows, err := w.sqlClient.Query("SELECT user_id FROM users WHERE user_id != 1 ORDER BY user_id DESC")
 	if err != nil {
+		log.Printf("GetAllUserIds: query error: %v", err)
 		return nil
 	}
 	defer rows.Close()
+
 	var ids []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("GetAllUserIds: scan error: %v", err)
+			return nil
 		}
+		ids = append(ids, id)
 	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("GetAllUserIds: rows iteration error: %v", err)
+		return nil
+	}
+
 	return ids
 }
