@@ -186,8 +186,14 @@ func RunBridge(configPath string) {
 		if val.Setter != nil {
 			config["command_topic"] = "~/set"
 		}
-		if len(val.Options) > 0 {
-			config["options"] = val.Options
+		if component == "select" {
+			// Home Assistant MQTT discovery requires an "options" field for select entities.
+			// Always include it, even if empty, to ensure the entity is created.
+			if val.Options != nil {
+				config["options"] = val.Options
+			} else {
+				config["options"] = []string{}
+			}
 		}
 		for k, v := range val.Config {
 			config[k] = v
