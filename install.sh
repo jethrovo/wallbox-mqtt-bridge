@@ -1,0 +1,203 @@
+#!/bin/bash
+
+set -euo pipefail
+
+RELEASE_TAG="${BRIDGE_VERSION:-bridgechannels-2025.12.06}"
+BASE_URL="${BRIDGE_BASE_URL:-https://github.com/Leventionz/wallbox-mqtt-bridge/releases/download/${RELEASE_TAG}}"
+INI_FILE=~/mqtt-bridge/bridge.ini
+
+update_settings_ini() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "python3 not found; please edit ${INI_FILE} manually to set $*"
+        return 1
+    fi
+
+    python3 - "${INI_FILE}" "$@" <<'PY'
+import configparser
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+args = sys.argv[2:]
+if len(args) % 2 != 0:
+    raise SystemExit("update_settings_ini requires key/value pairs")
+
+cfg = configparser.ConfigParser()
+cfg.optionxform = str
+cfg.read(str(path))
+
+if 'settings' not in cfg:
+    cfg['settings'] = {}
+
+for i in range(0, len(args), 2):
+    cfg['settings'][args[i]] = args[i + 1]
+
+with path.open('w') as fh:
+    cfg.write(fh)
+PY
+}
+
+# Remove any previous installation, except any configuration
+systemctl stop mqtt-bridge 2> /dev/null || true
+systemctl disable mqtt-bridge 2> /dev/null || true
+rm -f /lib/systemd/system/mqtt-bridge.service
+find ~/mqtt-bridge/ -type f ! -name bridge.ini -delete
+
+# Download the bridge
+echo "Downloading the bridge"
+arch=$(uname -m)
+if [ "$arch" == "armv7l" ]; then
+    curl -sSfL --create-dirs -o ~/mqtt-bridge/bridge "${BASE_URL}/bridge-armhf"
+elif [ "$arch" == "aarch64" ]; then
+    curl -sSfL --create-dirs -o ~/mqtt-bridge/bridge "${BASE_URL}/bridge-arm64"
+else
+    echo "Unknown architecture $arch"
+    exit 1
+fi
+
+chmod +x ~/mqtt-bridge/bridge
+
+# Create config if it doesn't exist
+if [ ! -e "$INI_FILE" ]; then
+    echo "No configuration found, please provide it now"
+    cd ~/mqtt-bridge/
+    ./bridge --config
+fi
+
+# Optional: enable diagnostic/debug sensors in Home Assistant
+read -r -p "Expose diagnostic/debug sensors in Home Assistant? [y/N]: " enable_debug_sensors
+if [[ "$enable_debug_sensors" =~ ^[Yy]$ ]]; then
+    update_settings_ini debug_sensors true || true
+else
+    update_settings_ini debug_sensors false || true
+fi
+
+# Pilot error safeguard prompt (before OCPP heal, as it is a broader safety net)
+read -r -p "Reboot if control pilot stays in error state? [y/N]: " enable_pilot_error_reboot
+if [[ "$enable_pilot_error_reboot" =~ ^[Yy]$ ]]; then
+    read -r -p "Seconds in control pilot error before reboot [300]: " pilot_error_seconds
+    pilot_error_seconds=${pilot_error_seconds:-300}
+    update_settings_ini pilot_error_reboot true pilot_error_seconds "$pilot_error_seconds" || true
+else
+    update_settings_ini pilot_error_reboot false || true
+fi
+
+echo
+echo "OCPP auto-heal targets third-party OCPP backends (e.g., vendor/partner WSS)."
+echo "It will NOT help when using Home Assistant's OCPP integration."
+echo "When the control pilot is connected/charging but OCPP reports a problem status"
+echo "(e.g., Available/Finishing/Unavailable/Faulted), the bridge restarts ocppwallbox."
+echo "You can cap attempts and optionally allow a full reboot if restarts do not recover."
+echo
+
+read -r -p "Enable automatic OCPP self-heal on pilot/OCPP mismatch? [y/N]: " enable_self_heal
+if [[ "$enable_self_heal" =~ ^[Yy]$ ]]; then
+    read -r -p "Seconds mismatch must persist before restart [180]: " mismatch_seconds
+    mismatch_seconds=${mismatch_seconds:-180}
+    read -r -p "Cooldown between restarts in seconds [300]: " cooldown_seconds
+    cooldown_seconds=${cooldown_seconds:-300}
+    read -r -p "Maximum service restart attempts before giving up or escalating [3]: " max_restarts
+    max_restarts=${max_restarts:-3}
+    read -r -p "Allow full Wallbox reboot if restarts do not clear the mismatch? [y/N]: " enable_full_reboot
+    if [[ "$enable_full_reboot" =~ ^[Yy]$ ]]; then
+        full_reboot="true"
+    else
+        full_reboot="false"
+    fi
+    update_settings_ini \
+        auto_restart_ocpp true \
+        ocpp_mismatch_seconds "$mismatch_seconds" \
+        ocpp_restart_cooldown_seconds "$cooldown_seconds" \
+        ocpp_max_restarts "$max_restarts" \
+        ocpp_full_reboot "$full_reboot" || true
+else
+    update_settings_ini auto_restart_ocpp false || true
+fi
+
+# Optional EVCC helper
+read -r -p "Generate EVCC sample configuration? [y/N]: " enable_evcc
+if [[ "$enable_evcc" =~ ^[Yy]$ ]]; then
+    echo "Preparing EVCC helper..."
+    serial_number=""
+    if command -v mysql >/dev/null 2>&1; then
+        serial_number=$(mysql --batch --skip-column-names -uroot -pfJmExsJgmKV7cq8H -h127.0.0.1 wallbox -e "SELECT serial_num FROM charger_info LIMIT 1;" 2>/dev/null | tr -d '\r\n')
+    fi
+
+    if [ -z "$serial_number" ]; then
+        read -r -p "Enter your Wallbox serial (used in MQTT topics, e.g. wallbox_123456): " serial_input
+        serial_number="$serial_input"
+    fi
+
+    # strip optional wallbox_ prefix if user included it
+    serial_number=${serial_number#wallbox_}
+
+    cat > ~/mqtt-bridge/evcc-wallbox.yaml <<EOF
+# Sample EVCC snippet generated by install.sh
+meters:
+  - name: wallboxpulsarmeter
+    type: custom
+    power:
+      source: mqtt
+      topic: wallbox_${serial_number}/charging_power/state
+      timeout: 180s
+    currents:
+      - source: mqtt
+        topic: wallbox_${serial_number}/charging_current_l1/state
+      - source: mqtt
+        topic: wallbox_${serial_number}/charging_current_l2/state
+      - source: mqtt
+        topic: wallbox_${serial_number}/charging_current_l3/state
+
+chargers:
+  - name: wallboxpulsarcharger
+    type: custom
+    status:
+      source: mqtt
+      topic: wallbox_${serial_number}/control_pilot_state/state
+    enabled:
+      source: mqtt
+      topic: wallbox_${serial_number}/charging_enable/state
+    enable:
+      source: mqtt
+      topic: wallbox_${serial_number}/charging_enable/set
+      payload: \${enable:%d}
+    maxcurrent:
+      source: mqtt
+      topic: wallbox_${serial_number}/max_charging_current/set
+
+loadpoints:
+  - title: wallboxpulsar
+    charger: wallboxpulsarcharger
+    meter: wallboxpulsarmeter
+    mode: pv
+EOF
+
+    echo "EVCC config helper written to ~/mqtt-bridge/evcc-wallbox.yaml"
+fi
+
+# Install the service
+echo "Setting up auto-start"
+
+content="[Unit]
+Description=MQTT Bridge
+After=network.target
+Requires=mysqld.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/home/root/mqtt-bridge/bridge /home/root/mqtt-bridge/bridge.ini
+
+[Install]
+WantedBy=multi-user.target"
+
+echo "$content" > /lib/systemd/system/mqtt-bridge.service
+
+systemctl daemon-reload
+systemctl enable mqtt-bridge
+systemctl restart mqtt-bridge
+
+echo "Done!"

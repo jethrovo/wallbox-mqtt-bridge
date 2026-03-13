@@ -17,6 +17,13 @@ type WallboxConfig struct {
 		DeviceName             string `ini:"device_name"`
 		DebugSensors           bool   `ini:"debug_sensors"`
 		PowerBoostEnabled      bool   `ini:"power_boost_enabled"`
+		AutoRestartOCPP        bool   `ini:"auto_restart_ocpp"`
+		OCPPMismatchSeconds    int    `ini:"ocpp_mismatch_seconds"`
+		OCPPRestartCooldown    int    `ini:"ocpp_restart_cooldown_seconds"`
+		OCPPMaxRestarts        int    `ini:"ocpp_max_restarts"`
+		OCPPFullReboot         bool   `ini:"ocpp_full_reboot"`
+		PilotErrorReboot       bool   `ini:"pilot_error_reboot"`
+		PilotErrorSeconds      int    `ini:"pilot_error_seconds"`
 	} `ini:"settings"`
 }
 
