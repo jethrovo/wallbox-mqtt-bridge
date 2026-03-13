@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"wallbox-mqtt-bridge/app/ratelimit"
 	"wallbox-mqtt-bridge/app/wallbox"
@@ -43,7 +44,7 @@ func getEntities(w *wallbox.Wallbox) map[string]Entity {
 			Component: "sensor",
 			Getter: func() string {
 				ids := w.GetAllUserIds()
-				return fmt.Sprintf("%s", ids)
+				return strings.Join(ids, ",")
 			},
 			Config: map[string]string{
 				"name": "User ID List",
