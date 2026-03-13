@@ -289,6 +289,8 @@ type Wallbox struct {
 	eventHandler          func(channel string, message string)
 	sessionEnergyBaseline float64
 	journalStopCh         chan struct{}
+	selectedUserId        string
+	selectedUserIdMux     sync.RWMutex
 }
 
 func New() *Wallbox {
@@ -397,6 +399,33 @@ func (w *Wallbox) UserId() string {
 	var userId string
 	w.sqlClient.QueryRow("SELECT `user_id` FROM `users` WHERE `user_id` != 1 ORDER BY `user_id` DESC LIMIT 1").Scan(&userId)
 	return userId
+}
+
+func (w *Wallbox) SelectedUserId() string {
+	if w.selectedUserId != "" {
+		return w.selectedUserId
+	}
+	return w.UserId()
+}
+
+func (w *Wallbox) SetSelectedUserId(userId string) {
+	if userId == "" {
+		w.selectedUserId = ""
+		return
+	}
+	if w.userIdExists(userId) {
+		w.selectedUserId = userId
+		return
+	}
+	w.selectedUserId = ""
+}
+
+func (w *Wallbox) userIdExists(userId string) bool {
+	var count int
+	if err := w.sqlClient.QueryRow("SELECT COUNT(*) FROM `users` WHERE `user_id` = ?", userId).Scan(&count); err != nil {
+		return false
+	}
+	return count > 0
 }
 
 func (w *Wallbox) AvailableCurrent() int {
@@ -529,7 +558,7 @@ func sendToPosixQueue(path, data string) {
 	mqClose(mq)
 }
 
-func (w *Wallbox) SetLocked(lock int) {
+func (w *Wallbox) SetLocked(lock int, userIdOpt ...string) {
 	w.RefreshData()
 	if lock == w.Data.SQL.Lock {
 		return
@@ -539,7 +568,17 @@ func (w *Wallbox) SetLocked(lock int) {
 	} else if lock == 1 {
 		sendToPosixQueue("WALLBOX_MYWALLBOX_WALLBOX_LOGIN", "EVENT_REQUEST_LOCK")
 	} else {
-		userId := w.UserId()
+		var userId string
+		if len(userIdOpt) > 0 && userIdOpt[0] != "" {
+			if w.userIdExists(userIdOpt[0]) {
+				userId = userIdOpt[0]
+			} else {
+				// userId does not exist, use fallback
+				userId = w.UserId()
+			}
+		} else {
+			userId = w.UserId()
+		}
 		sendToPosixQueue("WALLBOX_MYWALLBOX_WALLBOX_LOGIN", "EVENT_REQUEST_LOGIN#"+userId+".000000")
 	}
 }
@@ -1168,4 +1207,31 @@ func normalizeSessionState(state string) string {
 	normalized = strings.ReplaceAll(normalized, " ", "")
 	normalized = strings.ReplaceAll(normalized, "_", "")
 	return normalized
+}
+
+// GetAllUserIds returns all userIds except 1, ordered descending
+func (w *Wallbox) GetAllUserIds() []string {
+	rows, err := w.sqlClient.Query("SELECT user_id FROM users WHERE user_id != 1 ORDER BY user_id DESC")
+	if err != nil {
+		log.Printf("GetAllUserIds: query error: %v", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("GetAllUserIds: scan error: %v", err)
+			return nil
+		}
+		ids = append(ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("GetAllUserIds: rows iteration error: %v", err)
+		return nil
+	}
+
+	return ids
 }

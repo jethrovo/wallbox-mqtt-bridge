@@ -186,12 +186,28 @@ func RunBridge(configPath string) {
 		if val.Setter != nil {
 			config["command_topic"] = "~/set"
 		}
+		if component == "select" {
+			// Home Assistant MQTT discovery requires an "options" field for select entities.
+			// Always include it, even if empty, to ensure the entity is created.
+			if val.Options != nil {
+				config["options"] = val.Options
+			} else {
+				config["options"] = []string{}
+			}
+		}
 		for k, v := range val.Config {
 			config[k] = v
 		}
 		jsonPayload, _ := json.Marshal(config)
 		token := client.Publish("homeassistant/"+component+"/"+uid+"/config", 1, true, jsonPayload)
 		token.Wait()
+	}
+
+	if entity, ok := entityConfig["user_id_select"]; ok {
+		w.SetSelectedUserId(w.UserId())
+		payload := entity.Getter()
+		bytePayload := []byte(fmt.Sprint(payload))
+		client.Publish(topicPrefix+"/user_id_select/state", 1, true, bytePayload).Wait()
 	}
 
 	token := client.Publish(availabilityTopic, 1, true, "online")

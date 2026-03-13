@@ -2,39 +2,57 @@
 
 set -euo pipefail
 
-RELEASE_TAG="${BRIDGE_VERSION:-bridgechannels-2025.12.06}"
-BASE_URL="${BRIDGE_BASE_URL:-https://github.com/Leventionz/wallbox-mqtt-bridge/releases/download/${RELEASE_TAG}}"
+RELEASE_TAG="${BRIDGE_VERSION:-bridgechannels-2026.3.13}"
+BASE_URL="${BRIDGE_BASE_URL:-https://github.com/jethrovo/wallbox-mqtt-bridge/releases/download/${RELEASE_TAG}}"
 INI_FILE=~/mqtt-bridge/bridge.ini
 
 update_settings_ini() {
-    if ! command -v python3 >/dev/null 2>&1; then
-        echo "python3 not found; please edit ${INI_FILE} manually to set $*"
+    if [ $(( $# % 2 )) -ne 0 ]; then
+        echo "update_settings_ini requires key/value pairs" >&2
         return 1
     fi
 
-    python3 - "${INI_FILE}" "$@" <<'PY'
-import configparser
-import pathlib
-import sys
+    if [ ! -f "${INI_FILE}" ]; then
+        printf "[settings]\n" > "${INI_FILE}"
+    fi
 
-path = pathlib.Path(sys.argv[1])
-args = sys.argv[2:]
-if len(args) % 2 != 0:
-    raise SystemExit("update_settings_ini requires key/value pairs")
+    while [ $# -gt 0 ]; do
+        local key="$1"
+        local val="$2"
+        shift 2
 
-cfg = configparser.ConfigParser()
-cfg.optionxform = str
-cfg.read(str(path))
-
-if 'settings' not in cfg:
-    cfg['settings'] = {}
-
-for i in range(0, len(args), 2):
-    cfg['settings'][args[i]] = args[i + 1]
-
-with path.open('w') as fh:
-    cfg.write(fh)
-PY
+        local tmp
+        tmp=$(mktemp)
+        awk -v key="$key" -v val="$val" '
+            BEGIN { in_settings = 0; done = 0 }
+            /^\[settings\]$/ { print; in_settings = 1; next }
+            /^\[.*\]$/ {
+                if (in_settings && !done) {
+                    print key "=" val
+                    done = 1
+                }
+                in_settings = 0
+                print
+                next
+            }
+            {
+                if (in_settings && $0 ~ "^[ \t]*" key "[ \t]*=") {
+                    print key "=" val
+                    done = 1
+                    next
+                }
+                print
+            }
+            END {
+                if (!done) {
+                    if (!in_settings) {
+                        print "[settings]"
+                    }
+                    print key "=" val
+                }
+            }
+        ' "${INI_FILE}" > "$tmp" && mv "$tmp" "${INI_FILE}"
+    done
 }
 
 # Remove any previous installation, except any configuration
