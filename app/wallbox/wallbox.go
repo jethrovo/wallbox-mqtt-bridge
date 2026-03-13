@@ -289,7 +289,8 @@ type Wallbox struct {
 	eventHandler          func(channel string, message string)
 	sessionEnergyBaseline float64
 	journalStopCh         chan struct{}
-	selectedUserId string
+	selectedUserId        string
+	selectedUserIdMux     sync.RWMutex
 }
 
 func New() *Wallbox {
